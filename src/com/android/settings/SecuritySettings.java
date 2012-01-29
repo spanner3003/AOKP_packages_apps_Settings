@@ -36,12 +36,18 @@ import android.preference.PreferenceScreen;
 import android.provider.Settings;
 import android.security.KeyStore;
 import android.telephony.TelephonyManager;
-import android.util.Log;
 
+import android.util.Log;
+import android.widget.Toast;
+
+
+import com.android.internal.widget.AuthentecLoader;
 import com.android.internal.telephony.Phone;
 import com.android.internal.widget.LockPatternUtils;
+import android.content.ComponentName;
 
 import java.util.ArrayList;
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
 
 /**
  * Gesture lock pattern settings.
@@ -49,6 +55,8 @@ import java.util.ArrayList;
 public class SecuritySettings extends SettingsPreferenceFragment
         implements OnPreferenceChangeListener, DialogInterface.OnClickListener {
 
+//<<<<<<< HEAD
+//=======
     // Lock Settings
     private static final String KEY_UNLOCK_SET_OR_CHANGE = "unlock_set_or_change";
     private static final String KEY_BIOMETRIC_WEAK_IMPROVE_MATCHING =
@@ -56,11 +64,14 @@ public class SecuritySettings extends SettingsPreferenceFragment
     private static final String KEY_LOCK_ENABLED = "lockenabled";
     private static final String KEY_VISIBLE_PATTERN = "visiblepattern";
     private static final String KEY_TACTILE_FEEDBACK_ENABLED = "unlock_tactile_feedback";
+    private static final String KEY_START_DATABASE_ADMINISTRATION = "start_database_administration";
     private static final String KEY_SECURITY_CATEGORY = "security_category";
     private static final String KEY_LOCK_AFTER_TIMEOUT = "lock_after_timeout";
     private static final int SET_OR_CHANGE_LOCK_METHOD_REQUEST = 123;
+    private static final int TSM_RESULT = 195;
     private static final int CONFIRM_EXISTING_FOR_BIOMETRIC_IMPROVE_REQUEST = 124;
 
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
     // Misc Settings
     private static final String KEY_SIM_LOCK = "sim_lock";
     private static final String KEY_SHOW_PASSWORD = "show_password";
@@ -69,19 +80,26 @@ public class SecuritySettings extends SettingsPreferenceFragment
 
     DevicePolicyManager mDPM;
 
+//<<<<<<< HEAD
+//=======
     private ChooseLockSettingsHelper mChooseLockSettingsHelper;
     private LockPatternUtils mLockPatternUtils;
     private ListPreference mLockAfter;
 
     private CheckBoxPreference mVisiblePattern;
     private CheckBoxPreference mTactileFeedback;
+    private Preference mStartDatabaseAdministration;
 
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
     private CheckBoxPreference mShowPassword;
 
     private Preference mResetCredentials;
 
     private CheckBoxPreference mToggleAppInstallation;
     private DialogInterface mWarnInstallApps;
+
+    private Class AM_STATUS = null;
+    private AuthentecLoader loader;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -90,8 +108,15 @@ public class SecuritySettings extends SettingsPreferenceFragment
         mLockPatternUtils = new LockPatternUtils(getActivity());
 
         mDPM = (DevicePolicyManager)getSystemService(Context.DEVICE_POLICY_SERVICE);
+//<<<<<<< HEAD
+//=======
 
         mChooseLockSettingsHelper = new ChooseLockSettingsHelper(getActivity());
+
+	 // load AM_STATUS
+        loader = AuthentecLoader.getInstance(null);
+        AM_STATUS = loader.getAMStatus();
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
     }
 
     private PreferenceScreen createPreferenceHierarchy() {
@@ -102,6 +127,8 @@ public class SecuritySettings extends SettingsPreferenceFragment
         addPreferencesFromResource(R.xml.security_settings);
         root = getPreferenceScreen();
 
+//<<<<<<< HEAD
+//=======
         // Add options for lock/unlock screen
         int resid = 0;
         if (!mLockPatternUtils.isSecure()) {
@@ -118,6 +145,10 @@ public class SecuritySettings extends SettingsPreferenceFragment
                 case DevicePolicyManager.PASSWORD_QUALITY_SOMETHING:
                     resid = R.xml.security_settings_pattern;
                     break;
+ 		case DevicePolicyManager.PASSWORD_QUALITY_FINGER:
+                    //addPreferencesFromResource(R.xml.security_settings_finger);
+		    resid = R.xml.security_settings_finger;
+                    break;
                 case DevicePolicyManager.PASSWORD_QUALITY_NUMERIC:
                     resid = R.xml.security_settings_pin;
                     break;
@@ -131,6 +162,7 @@ public class SecuritySettings extends SettingsPreferenceFragment
         addPreferencesFromResource(resid);
 
 
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
         // Add options for device encryption
         DevicePolicyManager dpm =
                 (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
@@ -146,6 +178,8 @@ public class SecuritySettings extends SettingsPreferenceFragment
             break;
         }
 
+//<<<<<<< HEAD
+//=======
         // lock after preference
         mLockAfter = (ListPreference) root.findPreference(KEY_LOCK_AFTER_TIMEOUT);
         if (mLockAfter != null) {
@@ -176,7 +210,9 @@ public class SecuritySettings extends SettingsPreferenceFragment
                 securityCategory.removePreference(mTactileFeedback);
             }
         }
+	mStartDatabaseAdministration = (Preference) findPreference(KEY_START_DATABASE_ADMINISTRATION);
 
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
         // Append the rest of the settings
         addPreferencesFromResource(R.xml.security_settings_misc);
 
@@ -326,6 +362,9 @@ public class SecuritySettings extends SettingsPreferenceFragment
     public boolean onPreferenceTreeClick(PreferenceScreen preferenceScreen, Preference preference) {
         final String key = preference.getKey();
 
+//<<<<<<< HEAD
+      //  if (preference == mShowPassword) {
+//=======
         final LockPatternUtils lockPatternUtils = mChooseLockSettingsHelper.utils();
         if (KEY_UNLOCK_SET_OR_CHANGE.equals(key)) {
             startFragment(this, "com.android.settings.ChooseLockGeneric$ChooseLockGenericFragment",
@@ -343,7 +382,16 @@ public class SecuritySettings extends SettingsPreferenceFragment
             lockPatternUtils.setVisiblePatternEnabled(isToggled(preference));
         } else if (KEY_TACTILE_FEEDBACK_ENABLED.equals(key)) {
             lockPatternUtils.setTactileFeedbackEnabled(isToggled(preference));
+        } else if (KEY_START_DATABASE_ADMINISTRATION.equals(key)) {
+            // invoke the external activity
+            Intent intent = new Intent();
+            ComponentName component = new ComponentName("com.authentec.TrueSuiteMobile",
+                                "com.authentec.TrueSuiteMobile.DatabaseAdministration");
+            intent.setComponent(component);
+            intent.setAction(Intent.ACTION_MAIN);
+            startActivityForResult(intent, TSM_RESULT);
         } else if (preference == mShowPassword) {
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
             Settings.System.putInt(getContentResolver(), Settings.System.TEXT_SHOW_PASSWORD,
                     mShowPassword.isChecked() ? 1 : 0);
         } else if (preference == mToggleAppInstallation) {
@@ -361,35 +409,68 @@ public class SecuritySettings extends SettingsPreferenceFragment
         return true;
     }
 
+//<<<<<<< HEAD
+//=======
     private boolean isToggled(Preference pref) {
         return ((CheckBoxPreference) pref).isChecked();
     }
 
+    // The toast() function is provided to allow non-UI thread code to
+    // conveniently raise a toast...
+
+    
+    private void toast(final String s)
+    {
+        getActivity().runOnUiThread(new Runnable() {
+            public void run()
+            {
+                //Toast.makeText(SecuritySettings.this, s, Toast.LENGTH_SHORT).show();
+                Toast.makeText(getActivity(), s, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+     
+    
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
     /**
      * see confirmPatternThenDisableAndClear
      */
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+//<<<<<<< HEAD
+//=======
         if (requestCode == CONFIRM_EXISTING_FOR_BIOMETRIC_IMPROVE_REQUEST &&
                 resultCode == Activity.RESULT_OK) {
             startBiometricWeakImprove();
             return;
         }
+
+	if (TSM_RESULT == requestCode)
+        {
+            // NOTE: the result has a bias of 100!
+            int iResult = resultCode - 100;
+            try {
+                if (iResult == AM_STATUS.getDeclaredField("eAM_STATUS_OK").getInt(AM_STATUS)) {
+                    // Disable the fingerprint unlock mode if all fingers have been deleted.
+                    if (!mLockPatternUtils.savedFingerExists()) {
+                        mLockPatternUtils.setLockFingerEnabled(false);
+                    }
+                } else if (iResult == AM_STATUS.getDeclaredField("eAM_STATUS_LIBRARY_NOT_AVAILABLE").getInt(AM_STATUS)) {
+                    toast(getString(R.string.lockfinger_tsm_library_not_available_toast));
+                } else if (iResult == AM_STATUS.getDeclaredField("eAM_STATUS_USER_CANCELED").getInt(AM_STATUS)) {
+                    // Do nothing!
+                } else {
+                    toast(getString(R.string.lockfinger_dbadmin_failure_default_toast, iResult));
+                }
+            } catch (Exception e) {e.printStackTrace();}
+        }
+
+//>>>>>>> Changes to get fingerprint lock/unlock working on Motorola Atrix
         createPreferenceHierarchy();
     }
 
     public boolean onPreferenceChange(Preference preference, Object value) {
-        if (preference == mLockAfter) {
-            int timeout = Integer.parseInt((String) value);
-            try {
-                Settings.Secure.putInt(getContentResolver(),
-                        Settings.Secure.LOCK_SCREEN_LOCK_AFTER_TIMEOUT, timeout);
-            } catch (NumberFormatException e) {
-                Log.e("SecuritySettings", "could not persist lockAfter timeout setting", e);
-            }
-            updateLockAfterPreferenceSummary();
-        }
         return true;
     }
 
