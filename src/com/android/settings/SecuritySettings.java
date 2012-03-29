@@ -16,6 +16,7 @@
 
 package com.android.settings;
 
+
 import static android.provider.Settings.System.SCREEN_OFF_TIMEOUT;
 
 import android.app.Activity;
@@ -26,19 +27,15 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Vibrator;
-
 import android.preference.CheckBoxPreference;
 import android.preference.ListPreference;
-
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
-import android.preference.PreferenceScreen;
 import android.preference.PreferenceGroup;
-
+import android.preference.PreferenceScreen;
 import android.provider.Settings;
 import android.security.KeyStore;
 import android.telephony.TelephonyManager;
-
 import android.util.Log;
 import android.widget.Toast;
 
@@ -75,6 +72,7 @@ public class SecuritySettings extends SettingsPreferenceFragment
     private static final String KEY_SHOW_PASSWORD = "show_password";
     private static final String KEY_RESET_CREDENTIALS = "reset_credentials";
     private static final String KEY_TOGGLE_INSTALL_APPLICATIONS = "toggle_install_applications";
+    private static final String KEY_POWER_INSTANTLY_LOCKS = "power_button_instantly_locks";
 
     DevicePolicyManager mDPM;
 
@@ -92,6 +90,7 @@ public class SecuritySettings extends SettingsPreferenceFragment
 
     private CheckBoxPreference mToggleAppInstallation;
     private DialogInterface mWarnInstallApps;
+    private CheckBoxPreference mPowerButtonInstantlyLocks;
 
     private Class AM_STATUS = null;
     private AuthentecLoader loader;
@@ -177,6 +176,10 @@ public class SecuritySettings extends SettingsPreferenceFragment
         // visible pattern
         mVisiblePattern = (CheckBoxPreference) root.findPreference(KEY_VISIBLE_PATTERN);
 
+        // lock instantly on power key press
+        mPowerButtonInstantlyLocks = (CheckBoxPreference) root.findPreference(
+                KEY_POWER_INSTANTLY_LOCKS);
+
         // don't display visible pattern if biometric and backup is not pattern
         if (resid == R.xml.security_settings_biometric_weak &&
                 mLockPatternUtils.getKeyguardStoredPasswordQuality() !=
@@ -207,6 +210,14 @@ public class SecuritySettings extends SettingsPreferenceFragment
         if ((TelephonyManager.PHONE_TYPE_CDMA == tm.getCurrentPhoneType()) &&
                 (tm.getLteOnCdmaMode() != Phone.LTE_ON_CDMA_TRUE)) {
             root.removePreference(root.findPreference(KEY_SIM_LOCK));
+        } else {
+            // Disable SIM lock if sim card is missing or unknown
+            if ((TelephonyManager.getDefault().getSimState() ==
+                                 TelephonyManager.SIM_STATE_ABSENT) ||
+                (TelephonyManager.getDefault().getSimState() ==
+                                 TelephonyManager.SIM_STATE_UNKNOWN)) {
+                root.findPreference(KEY_SIM_LOCK).setEnabled(false);
+            }
         }
 
         // Show password
@@ -336,6 +347,9 @@ public class SecuritySettings extends SettingsPreferenceFragment
         if (mTactileFeedback != null) {
             mTactileFeedback.setChecked(lockPatternUtils.isTactileFeedbackEnabled());
         }
+        if (mPowerButtonInstantlyLocks != null) {
+            mPowerButtonInstantlyLocks.setChecked(lockPatternUtils.getPowerButtonInstantlyLocks());
+        }
 
         mShowPassword.setChecked(Settings.System.getInt(getContentResolver(),
                 Settings.System.TEXT_SHOW_PASSWORD, 1) != 0);
@@ -348,7 +362,6 @@ public class SecuritySettings extends SettingsPreferenceFragment
     public boolean onPreferenceTreeClick(PreferenceScreen preferenceScreen, Preference preference) {
         final String key = preference.getKey();
 
-      //  if (preference == mShowPassword) {
         final LockPatternUtils lockPatternUtils = mChooseLockSettingsHelper.utils();
         if (KEY_UNLOCK_SET_OR_CHANGE.equals(key)) {
             startFragment(this, "com.android.settings.ChooseLockGeneric$ChooseLockGenericFragment",
@@ -366,6 +379,8 @@ public class SecuritySettings extends SettingsPreferenceFragment
             lockPatternUtils.setVisiblePatternEnabled(isToggled(preference));
         } else if (KEY_TACTILE_FEEDBACK_ENABLED.equals(key)) {
             lockPatternUtils.setTactileFeedbackEnabled(isToggled(preference));
+        } else if (KEY_POWER_INSTANTLY_LOCKS.equals(key)) {
+            lockPatternUtils.setPowerButtonInstantlyLocks(isToggled(preference));
         } else if (KEY_START_DATABASE_ADMINISTRATION.equals(key)) {
             // invoke the external activity
             Intent intent = new Intent();
@@ -447,7 +462,7 @@ public class SecuritySettings extends SettingsPreferenceFragment
         createPreferenceHierarchy();
     }
 
-      public boolean onPreferenceChange(Preference preference, Object value) {
+    public boolean onPreferenceChange(Preference preference, Object value) {
         if (preference == mLockAfter) {
             int timeout = Integer.parseInt((String) value);
             try {
@@ -466,5 +481,4 @@ public class SecuritySettings extends SettingsPreferenceFragment
         intent.setClassName("com.android.facelock", "com.android.facelock.AddToSetup");
         startActivity(intent);
     }
-
 }
